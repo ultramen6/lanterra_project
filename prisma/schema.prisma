@@ -18,7 +18,7 @@ model User {
   email     String    @unique
   password  String?
   provider  Provider?
-  isBlocked Boolean   @map("is_blocked")
+  isBlocked Boolean   @default(false) @map("is_blocked")
   createAt  DateTime  @default(now()) @map("create_at")
   updateAt  DateTime  @default(now()) @map("update_at")
   roles     Role[]
