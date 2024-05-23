@@ -1,7 +1,7 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
-import { Inject, Injectable, Logger } from '@nestjs/common'
+import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { User } from '@prisma/client'
+import { Role, User } from '@prisma/client'
 import { genSaltSync, hashSync } from 'bcrypt'
 import { Cache } from 'cache-manager'
 import { convertToSecondsUtil } from 'common/utils'
@@ -93,6 +93,38 @@ export class UserService {
       return user
     }
     return cachedUser
+  }
+
+  /**
+   * Deletes a user from the database by their ID.
+   * Only the user themselves or an admin can delete the user.
+   * Clears the user's cache before deletion.
+   * Throws a ForbiddenException if the action is not allowed.
+   *
+   * @param id - The ID of the user to be deleted.
+   * @param user - The JWT payload of the requesting user.
+   * @returns A promise that resolves to the deleted user's ID and email.
+   */
+  async delete(
+    id: string,
+    user: IJwtPayload
+  ): Promise<{ id: string; email: string } | void> {
+    if (!user || (user.id !== id && !user.roles.includes(Role.ADMIN))) {
+      throw new ForbiddenException(
+        `Нет доступа или нет такого пользователя с id: ${id}`
+      )
+    }
+
+    await this.clearUserCache(user)
+
+    return await this.prismaService.user
+      .delete({
+        where: { id },
+        select: { id: true, email: true }
+      })
+      .catch(err => {
+        this.logger.error('user delete issue', err)
+      })
   }
 
   /**
