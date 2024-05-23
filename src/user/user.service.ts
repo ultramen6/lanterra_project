@@ -1,5 +1,12 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
-import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  Logger
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Role, User } from '@prisma/client'
 import { genSaltSync, hashSync } from 'bcrypt'
@@ -154,6 +161,55 @@ export class UserService {
         `Пользователь с id: ${idOrEmail.id || idOrEmail.email} не найден`
       )
     }
+  }
+
+  /**
+   * Updates the user's information in the database.
+   * Only the user themselves or an admin can perform the update.
+   * The user's password is hashed if it is provided in the update data.
+   * The user's cache is cleared and then updated with the new information after the update.
+   * Throws a BadRequestException if no update data is provided.
+   * Throws a ForbiddenException if the user does not have permission to update the data.
+   *
+   * @param userDto - Data transfer object containing the user's updated information.
+   * @param userCookie - JWT payload containing the current user's information.
+   * @returns A promise that resolves to the updated user object.
+   */
+  async update(userDto: UpdateUserDto, userCookie: IJwtPayload): Promise<User> {
+    if (!userDto) {
+      throw new BadRequestException(
+        'Необходимо предоставить данные для обновления'
+      )
+    }
+    if (
+      userDto.email !== userCookie.email &&
+      !userCookie.roles.includes(Role.ADMIN)
+    ) {
+      throw new ForbiddenException(
+        'У вас нет прав для выполнения этой операции'
+      )
+    }
+    const updateData = {
+      email: userDto?.email ?? undefined,
+      password: userDto?.password
+        ? this.hashPassword(userDto.password)
+        : undefined
+    }
+
+    const updateUser = await this.prismaService.user
+      .update({
+        where: { email: userCookie.email },
+        data: updateData
+      })
+      .catch(err => {
+        this.logger.error('updateUser issue', err)
+        throw new InternalServerErrorException('Ошибка обновления пользователя')
+      })
+
+    await this.clearUserCache(userCookie)
+    await this.setUserCache(updateData)
+
+    return updateUser
   }
 
   /**
