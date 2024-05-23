@@ -128,6 +128,35 @@ export class UserService {
   }
 
   /**
+   * Toggles the blocked status of a user in the database.
+   * If the user is currently blocked, they will be unblocked, and vice versa.
+   * Updates the user's cache after changing the blocked status.
+   * Throws a ForbiddenException if the user is not found.
+   *
+   * @param idOrEmail - Object containing the user's ID or email.
+   * @returns A promise that resolves to the updated user object with ID and blocked status.
+   */
+  async setBlockUnblockUser(idOrEmail: IdOrEmail): Promise<Partial<User>> {
+    try {
+      const userExist = await this.findOne(idOrEmail)
+      const updateUser = await this.prismaService.user.update({
+        where: { id: userExist.id },
+        data: { isBlocked: !userExist.isBlocked },
+        select: { id: true, isBlocked: true }
+      })
+
+      await this.clearUserCache(userExist)
+
+      return updateUser
+    } catch (err) {
+      this.logger.error('setBlockUnblockUser issue', err)
+      throw new ForbiddenException(
+        `Пользователь с id: ${idOrEmail.id || idOrEmail.email} не найден`
+      )
+    }
+  }
+
+  /**
    * Clears the user cache based on the provided identifier(s).
    * It can accept either an object with 'id' or 'email' properties, or a user object.
    * The function constructs a list of promises to delete cache entries for each provided identifier.
