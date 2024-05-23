@@ -23,13 +23,14 @@ export class UserService {
    * The user is either updated or created based on the presence of their email in the database.
    * After saving, the user's data is cached for quick access.
    *
-   * @param {Partial<User>} user - A user object containing new or updated user data.
-   * @returns {Promise<User | null>} - A promise that resolves to the saved user object or null in case of an error.
+   * @param user - A user object containing new or updated user data.
+   * @returns - A promise that resolves to the saved user object or null in case of an error.
    */
   async save(user: Partial<User>): Promise<User | null> {
     const hashedPassword = user?.password
       ? this.hashPassword(user.password)
       : null
+
     const savedUser = await this.prismaService.user
       .upsert({
         where: { email: user.email },
@@ -60,10 +61,38 @@ export class UserService {
     return hashSync(password, genSaltSync(10))
   }
 
-  async findOne(idOrEmail: IdOrEmail, isReset = false) {
+  /**
+   * Retrieves a user by their ID or email from the cache or the database.
+   * If the 'isReset' flag is true, the user's cache will be cleared first.
+   * If the user is not found in the cache, a database lookup is performed.
+   * If the user is found in the database, their information is cached for future requests.
+   * If the user is not found in the database, null is returned.
+   *
+   * @param idOrEmail - An object that may contain 'id' or 'email' properties.
+   * @param isReset - A flag indicating whether to clear the user's cache before retrieval.
+   * @returns - A promise that resolves to the user object if found, otherwise null.
+   */
+  async findOne(
+    idOrEmail: Partial<IdOrEmail>,
+    isReset = false
+  ): Promise<User | null> {
     if (isReset) {
-      this.clearUserCache(idOrEmail)
+      await this.clearUserCache(idOrEmail)
     }
+    const cachedUser = await this.cacheManager.get<User>(idOrEmail.email)
+    if (!cachedUser) {
+      const user = await this.prismaService.user.findFirst({
+        where: {
+          OR: [{ email: idOrEmail.email }, { id: idOrEmail.id }]
+        }
+      })
+      if (!user) {
+        return null
+      }
+      await this.setUserCache(idOrEmail, user)
+      return user
+    }
+    return cachedUser
   }
 
   /**
@@ -72,9 +101,9 @@ export class UserService {
    * The function constructs a list of promises to delete cache entries for each provided identifier.
    * It then awaits the resolution of all promises to ensure all relevant cache entries are cleared.
    *
-   * @param {IdOrEmail} idOrEmail - An object that may contain 'id' or 'email' properties.
-   * @param {Partial<User | IJwtPayload>} user - A user object that may contain 'id' and 'email' properties.
-   * @returns {Promise<void>} - A promise that resolves when all cache deletions are complete.
+   * @param idOrEmail - An object that may contain 'id' or 'email' properties.
+   * @param user - A user object that may contain 'id' and 'email' properties.
+   * @returns - A promise that resolves when all cache deletions are complete.
    */
   private async clearUserCache(
     idOrEmail?: IdOrEmail,
@@ -107,9 +136,9 @@ export class UserService {
    * If no 'idOrEmail' is provided, it will use the 'id' or 'email' from the user object.
    * The cache entries are set with a time-to-live (TTL) value converted from the JWT expiration configuration.
    *
-   * @param {Partial<IdOrEmail>} idOrEmail - An object that may contain 'id' or 'email' properties.
-   * @param {Partial<User | IJwtPayload>} user - A user object that may contain 'id' and 'email' properties.
-   * @returns {Promise<void>} - A promise that resolves when the cache set operation is complete.
+   * @param idOrEmail - An object that may contain 'id' or 'email' properties.
+   * @param user - A user object that may contain 'id' and 'email' properties.
+   * @returns - A promise that resolves when the cache set operation is complete.
    */
   private async setUserCache(
     idOrEmail?: Partial<IdOrEmail>,
