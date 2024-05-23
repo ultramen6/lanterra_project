@@ -17,11 +17,20 @@ export class UserService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache
   ) { }
 
-  async save(user: Partial<User>) {
+  /**
+   * Saves or updates a user in the database and caches their information.
+   * If the user's password is provided, it is hashed before saving.
+   * The user is either updated or created based on the presence of their email in the database.
+   * After saving, the user's data is cached for quick access.
+   *
+   * @param {Partial<User>} user - A user object containing new or updated user data.
+   * @returns {Promise<User | null>} - A promise that resolves to the saved user object or null in case of an error.
+   */
+  async save(user: Partial<User>): Promise<User | null> {
     const hashedPassword = user?.password
       ? this.hashPassword(user.password)
       : null
-    const savedUser = this.prismaService.user
+    const savedUser = await this.prismaService.user
       .upsert({
         where: { email: user.email },
         update: {
@@ -41,39 +50,84 @@ export class UserService {
         this.logger.error('save user issue', err)
         return null
       })
-    this.setUserCache(user)
+    if (savedUser) {
+      this.setUserCache(user)
+    }
     return savedUser
   }
 
-  private hashPassword(password: string) {
+  private hashPassword(password: string): string {
     return hashSync(password, genSaltSync(10))
   }
 
-  private async clearUserCache(
-    user: Partial<User | IJwtPayload>
-  ): Promise<void> {
-    await Promise.all([
-      this.cacheManager.del(user.id),
-      this.cacheManager.del(user.email)
-    ]).catch(err => {
-      this.logger.error('clearUserCache issue', err)
-    })
+  async findOne(idOrEmail: IdOrEmail, isReset = false) {
+    if (isReset) {
+      this.clearUserCache(idOrEmail)
+    }
   }
 
+  /**
+   * Clears the user cache based on the provided identifier(s).
+   * It can accept either an object with 'id' or 'email' properties, or a user object.
+   * The function constructs a list of promises to delete cache entries for each provided identifier.
+   * It then awaits the resolution of all promises to ensure all relevant cache entries are cleared.
+   *
+   * @param {IdOrEmail} idOrEmail - An object that may contain 'id' or 'email' properties.
+   * @param {Partial<User | IJwtPayload>} user - A user object that may contain 'id' and 'email' properties.
+   * @returns {Promise<void>} - A promise that resolves when all cache deletions are complete.
+   */
+  private async clearUserCache(
+    idOrEmail?: IdOrEmail,
+    user?: Partial<User | IJwtPayload>
+  ): Promise<void> {
+    try {
+      const promises = []
+      if (idOrEmail?.id) {
+        promises.push(this.cacheManager.del(idOrEmail.id))
+      }
+      if (idOrEmail?.email) {
+        promises.push(this.cacheManager.del(idOrEmail.email))
+      }
+      if (user?.id) {
+        promises.push(this.cacheManager.del(user.id))
+      }
+      if (user?.email) {
+        promises.push(this.cacheManager.del(user.email))
+      }
+      await Promise.all(promises)
+    } catch (err) {
+      this.logger.error('clearUserCache issue', err)
+    }
+  }
+
+  /**
+   * Sets the user cache with the provided user data.
+   * It accepts either an object with 'id' or 'email' properties, or a user object.
+   * The function sets cache entries for the provided identifier(s) with the user data.
+   * If no 'idOrEmail' is provided, it will use the 'id' or 'email' from the user object.
+   * The cache entries are set with a time-to-live (TTL) value converted from the JWT expiration configuration.
+   *
+   * @param {Partial<IdOrEmail>} idOrEmail - An object that may contain 'id' or 'email' properties.
+   * @param {Partial<User | IJwtPayload>} user - A user object that may contain 'id' and 'email' properties.
+   * @returns {Promise<void>} - A promise that resolves when the cache set operation is complete.
+   */
   private async setUserCache(
     idOrEmail?: Partial<IdOrEmail>,
     user?: Partial<User | IJwtPayload>
   ): Promise<void> {
     try {
       const ttl = convertToSecondsUtil(this.configService.get('JWT_EXP'))
-      if (idOrEmail.id) {
+      if (idOrEmail?.id) {
         await this.cacheManager.set(idOrEmail.id, user, ttl)
       }
-      if (idOrEmail.email) {
+      if (idOrEmail?.email) {
         await this.cacheManager.set(idOrEmail.email, user, ttl)
       }
-      if (!idOrEmail.id && !idOrEmail.email && user.email) {
+      if (!idOrEmail && user?.email) {
         await this.cacheManager.set(user.email, user, ttl)
+      }
+      if (!idOrEmail && user?.id) {
+        await this.cacheManager.set(user.id, user, ttl)
       }
     } catch (err) {
       this.logger.error('setUserCache issue', err)
