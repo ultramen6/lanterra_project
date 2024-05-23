@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config'
 import { User } from '@prisma/client'
 import { genSaltSync, hashSync } from 'bcrypt'
 import { Cache } from 'cache-manager'
+import { convertToSecondsUtil } from 'common/utils'
+import { IJwtPayload, IdOrEmail } from 'src/auth/interfaces'
 import { PrismaService } from 'src/prisma/prisma.service'
 
 @Injectable()
@@ -39,6 +41,7 @@ export class UserService {
         this.logger.error('save user issue', err)
         return null
       })
+    this.setUserCache(user)
   }
 
   private hashPassword(password: string) {
