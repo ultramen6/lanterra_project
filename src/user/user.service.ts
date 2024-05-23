@@ -12,6 +12,7 @@ import { Role, User } from '@prisma/client'
 import { genSaltSync, hashSync } from 'bcrypt'
 import { Cache } from 'cache-manager'
 import { convertToSecondsUtil } from 'common/utils'
+import { UpdateUserDto } from 'src/auth/dto/update-user.dto'
 import { IJwtPayload, IdOrEmail } from 'src/auth/interfaces'
 import { PrismaService } from 'src/prisma/prisma.service'
 
@@ -175,6 +176,7 @@ export class UserService {
    * @param userCookie - JWT payload containing the current user's information.
    * @returns A promise that resolves to the updated user object.
    */
+
   async update(userDto: UpdateUserDto, userCookie: IJwtPayload): Promise<User> {
     if (!userDto) {
       throw new BadRequestException(
