@@ -42,6 +42,7 @@ export class UserService {
         return null
       })
     this.setUserCache(user)
+    return savedUser
   }
 
   private hashPassword(password: string) {
