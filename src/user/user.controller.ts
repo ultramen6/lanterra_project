@@ -14,6 +14,7 @@ import { UserService } from './user.service'
 import { IJwtPayload, IdOrEmail } from 'src/auth/interfaces'
 import { Response } from 'express'
 import { UpdateUserDto } from 'src/auth/dto/update-user.dto'
+import { CurrentUser } from 'common/decorators'
 
 @Controller('user')
 export class UserController {

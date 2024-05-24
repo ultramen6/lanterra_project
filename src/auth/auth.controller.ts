@@ -9,14 +9,15 @@ import {
   UnauthorizedException,
   UseInterceptors
 } from '@nestjs/common'
-import { AuthService } from './auth.service'
+import { AuthService, REFRESH_TOKEN } from './auth.service'
 import { RegisterUserDto } from './dto/register-user.dto'
 import { UserResponse } from './responses/user-response'
 import { LoginUserDto } from './dto/login-user.dto'
 import { IUserAgentInfo } from './interfaces'
 import { Response } from 'express'
-import { Cookie, UserAgent } from 'common/decorators'
+import { Cookie, Public, UserAgent } from 'common/decorators'
 
+@Public()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }

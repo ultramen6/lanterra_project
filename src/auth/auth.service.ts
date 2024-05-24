@@ -41,7 +41,7 @@ export class AuthService {
    * @throws ConflictException if a user with the same email already exists.
    */
   async register(dto: RegisterUserDto) {
-    const user = await this.userService.findOne(dto.email).catch(err => {
+    const user = await this.userService.findOne(dto).catch(err => {
       this.logger.error('register findOne issue', err)
       return null
     })
@@ -65,7 +65,7 @@ export class AuthService {
    */
   async login(dto: LoginUserDto, agent: IUserAgentInfo): Promise<ITokens> {
     const userExist: User = await this.userService
-      .findOne(dto.email, true)
+      .findOne(dto, true)
       .catch(err => {
         this.logger.error('login findOne issue', err)
         return null
@@ -186,7 +186,7 @@ export class AuthService {
    * @returns A promise that resolves to an object containing the new access and refresh tokens.
    * @throws UnauthorizedException if the refresh token is invalid, expired, or the user is blocked.
    */
-  async refreshToken(refreshToken: string, agent: IUserAgentInfo) {
+  async refreshTokens(refreshToken: string, agent: IUserAgentInfo) {
     try {
       const _token = await this.prismaService.token
         .delete({
@@ -198,10 +198,12 @@ export class AuthService {
       if (!_token || new Date(_token.exp) < new Date()) {
         throw new UnauthorizedException('Unknown session...')
       }
-      const user = await this.userService.findOne(_token.userId).catch(err => {
-        this.logger.error('refreshToken userFindOne issue', err)
-        throw new ForbiddenException('UserId не найден')
-      })
+      const user = await this.userService
+        .findOne({ id: _token.userId })
+        .catch(err => {
+          this.logger.error('refreshToken userFindOne issue', err)
+          throw new ForbiddenException('UserId не найден')
+        })
       if (user.isBlocked) {
         throw new UnauthorizedException(
           `Аккаунт с Email: ${user.email} - заблокирован!`

@@ -29,9 +29,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: IJwtPayload) {
-    const user = await this.userService.findOne(payload.email).catch(err => {
-      this.logger.error('findOne user issue', err)
-    })
+    const user = await this.userService
+      .findOne({ email: payload.email })
+      .catch(err => {
+        this.logger.error('findOne user issue', err)
+      })
     if (!user) {
       throw new UnauthorizedException('User not found or inactive')
     }
