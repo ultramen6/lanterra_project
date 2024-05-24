@@ -15,6 +15,7 @@ import { UserResponse } from './responses/user-response'
 import { LoginUserDto } from './dto/login-user.dto'
 import { IUserAgentInfo } from './interfaces'
 import { Response } from 'express'
+import { Cookie, UserAgent } from 'common/decorators'
 
 @Controller('auth')
 export class AuthController {
