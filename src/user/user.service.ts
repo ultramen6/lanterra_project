@@ -81,7 +81,7 @@ export class UserService {
    * @returns - A promise that resolves to the user object if found, otherwise null.
    */
   async findOne(
-    idOrEmail: Partial<IdOrEmail | IJwtPayload>,
+    idOrEmail: Partial<IdOrEmail>,
     isReset = false
   ): Promise<User | null> {
     if (isReset) {
