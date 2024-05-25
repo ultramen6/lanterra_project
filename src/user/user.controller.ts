@@ -1,62 +1,73 @@
 import {
-  BadRequestException,
-  Controller,
-  Delete,
-  Get,
-  HttpStatus,
-  Logger,
-  Param,
-  ParseUUIDPipe,
-  Put,
-  Res
+	BadRequestException,
+	Body,
+	ClassSerializerInterceptor,
+	Controller,
+	Delete,
+	Get,
+	HttpStatus,
+	Logger,
+	Param,
+	ParseUUIDPipe,
+	Put,
+	Res,
+	UseGuards,
+	UseInterceptors
 } from '@nestjs/common'
 import { UserService } from './user.service'
-import { IJwtPayload, IdOrEmail } from 'src/auth/interfaces'
+import { IJwtPayload } from 'src/auth/interfaces'
 import { Response } from 'express'
 import { UpdateUserDto } from 'src/auth/dto/update-user.dto'
-import { CurrentUser } from 'common/decorators'
+import { CurrentUser, Roles } from 'common/decorators'
+import { RolesGuard } from 'src/auth/guards/roles-guard'
+import { Role } from '@prisma/client'
+import { UserResponse } from 'src/auth/responses/user-response'
 
 @Controller('user')
 export class UserController {
-  private readonly logger = new Logger(UserController.name)
-  constructor(private readonly userService: UserService) { }
+	private readonly logger = new Logger(UserController.name)
+	constructor(private readonly userService: UserService) {}
 
-  @Get(':idOrEmail')
-  async findOne(@Param(':idOrEmail') idOrEmail: Partial<IdOrEmail>) {
-    const user = await this.userService.findOne(idOrEmail).catch(err => {
-      this.logger.error('findOne issue', err)
-      return null
-    })
-    if (!user) {
-      throw new BadRequestException(
-        `Пользователь с id/Email: ${idOrEmail} не найден.`
-      )
-    }
-    return user
-  }
+	@UseInterceptors(ClassSerializerInterceptor)
+	@Get(':idOrEmail')
+	async findOne(@Param('idOrEmail') idOrEmail: string) {
+		const user = await this.userService.findOne(idOrEmail)
+		if (!user) {
+			throw new BadRequestException(
+				`Пользователь с id/email: ${idOrEmail} не найден.`
+			)
+		}
+		return new UserResponse(user)
+	}
 
-  @Delete(':id')
-  async delete(
-    @Param(':id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: IJwtPayload
-  ) {
-    return await this.userService.delete(id, user)
-  }
+	@Delete(':id')
+	async delete(
+		@Param('id', ParseUUIDPipe) id: string,
+		@CurrentUser() user: IJwtPayload
+	) {
+		return await this.userService.delete(id, user)
+	}
 
-  @Put('set-block-unblock-user/:idOrEmail')
-  async setBlockUnblockUser(
-    @Param(':idOrEmail', ParseUUIDPipe) id: Partial<IdOrEmail>,
-    @Res() res: Response
-  ) {
-    const blockedUser = await this.userService.setBlockUnblockUser(id)
-    res.status(HttpStatus.ACCEPTED).json({
-      message: `Статус блокировки пользователя с Email: ${blockedUser.email} изменен на: ${blockedUser.isBlocked}`
-    })
-  }
+	@UseGuards(RolesGuard)
+	@Roles(Role.ADMIN)
+	@Put('set-block-unblock-user/:idOrEmail')
+	async setBlockUnblockUser(
+		@Param('idOrEmail') idOrEmail: string,
+		@Res() res: Response
+	) {
+		const blockedUser = await this.userService.setBlockUnblockUser(idOrEmail)
+		res.status(HttpStatus.ACCEPTED).json({
+			message: `Статус блокировки пользователя с Email: ${blockedUser.email} изменен на: ${blockedUser.isBlocked}`
+		})
+	}
 
-  @Put('update-user')
-  async updateUser(dto: UpdateUserDto, @CurrentUser() user: IJwtPayload) {
-    const updatedUser = await this.userService.update(dto, user)
-    return updatedUser
-  }
+	@UseInterceptors(ClassSerializerInterceptor)
+	@Put('update-user')
+	async updateUser(
+		@Body() dto: UpdateUserDto,
+		@CurrentUser() user: IJwtPayload
+	) {
+		const updatedUser = await this.userService.update(dto, user)
+		return new UserResponse(updatedUser)
+	}
 }

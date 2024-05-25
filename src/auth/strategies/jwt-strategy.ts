@@ -15,31 +15,29 @@ import { IJwtPayload } from '../interfaces'
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  private readonly logger = new Logger(JwtStrategy.name)
+	private readonly logger = new Logger(JwtStrategy.name)
 
-  constructor(
-    private readonly userService: UserService,
-    private readonly configService: ConfigService
-  ) {
-    super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
-      secretOrKey: configService.get('JWT_SECRET')
-    })
-  }
+	constructor(
+		private readonly userService: UserService,
+		private readonly configService: ConfigService
+	) {
+		super({
+			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+			ignoreExpiration: false,
+			secretOrKey: configService.get('JWT_SECRET')
+		})
+	}
 
-  async validate(payload: IJwtPayload) {
-    const user = await this.userService
-      .findOne({ email: payload.email })
-      .catch(err => {
-        this.logger.error('findOne user issue', err)
-      })
-    if (!user) {
-      throw new UnauthorizedException('User not found or inactive')
-    }
-    if (user.isBlocked) {
-      throw new UnauthorizedException('User is blocked')
-    }
-    return user
-  }
+	async validate(payload: IJwtPayload) {
+		const user = await this.userService.findOne(payload.id).catch(err => {
+			this.logger.error('findOne user issue', err)
+		})
+		if (!user) {
+			throw new UnauthorizedException('User not found or inactive')
+		}
+		if (user.isBlocked) {
+			throw new UnauthorizedException('User is blocked')
+		}
+		return user
+	}
 }

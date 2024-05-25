@@ -13,7 +13,7 @@ import { genSaltSync, hashSync } from 'bcrypt'
 import { Cache } from 'cache-manager'
 import { convertToSecondsUtil } from 'common/utils'
 import { UpdateUserDto } from 'src/auth/dto/update-user.dto'
-import { IJwtPayload, IdOrEmail } from 'src/auth/interfaces'
+import { IJwtPayload } from 'src/auth/interfaces'
 import { PrismaService } from 'src/prisma/prisma.service'
 
 @Injectable()
@@ -60,7 +60,7 @@ export class UserService {
 				return null
 			})
 		if (savedUser) {
-			this.setUserCache(null, user)
+			this.setUserCache(user)
 		}
 		return savedUser
 	}
@@ -80,18 +80,15 @@ export class UserService {
 	 * @param isReset - A flag indicating whether to clear the user's cache before retrieval.
 	 * @returns - A promise that resolves to the user object if found, otherwise null.
 	 */
-	async findOne(
-		idOrEmail: Partial<IdOrEmail>,
-		isReset = false
-	): Promise<User | null> {
+	async findOne(idOrEmail: string, isReset = false): Promise<User | null> {
 		if (isReset) {
 			await this.clearUserCache(idOrEmail)
 		}
-		const cachedUser = await this.cacheManager.get<User>(idOrEmail.email)
+		const cachedUser = await this.cacheManager.get<User>(idOrEmail)
 		if (!cachedUser) {
 			const user = await this.prismaService.user.findFirst({
 				where: {
-					OR: [{ email: idOrEmail.email }, { id: idOrEmail.id }]
+					OR: [{ email: idOrEmail }, { id: idOrEmail }]
 				}
 			})
 			if (!user) {
@@ -144,9 +141,11 @@ export class UserService {
 	 * @param idOrEmail - Object containing the user's ID or email.
 	 * @returns A promise that resolves to the updated user object with ID and blocked status.
 	 */
-	async setBlockUnblockUser(idOrEmail: IdOrEmail): Promise<Partial<User>> {
+	async setBlockUnblockUser(idOrEmail: string): Promise<Partial<User>> {
 		try {
 			const userExist = await this.findOne(idOrEmail)
+			console.log('setBLOCK')
+			console.log(userExist)
 			const updateUser = await this.prismaService.user.update({
 				where: { id: userExist.id },
 				data: { isBlocked: !userExist.isBlocked },
@@ -158,9 +157,7 @@ export class UserService {
 			return updateUser
 		} catch (err) {
 			this.logger.error('setBlockUnblockUser issue', err)
-			throw new ForbiddenException(
-				`Пользователь с id: ${idOrEmail.id || idOrEmail.email} не найден`
-			)
+			throw new ForbiddenException(`Пользователь с id: ${idOrEmail} не найден`)
 		}
 	}
 
@@ -191,16 +188,25 @@ export class UserService {
 				'У вас нет прав для выполнения этой операции'
 			)
 		}
-		const updateData = {
-			email: userDto?.email ?? undefined,
+		let updateData = {
 			password: userDto?.password
 				? this.hashPassword(userDto.password)
 				: undefined
 		}
 
+		if (userCookie.roles.includes(Role.ADMIN)) {
+			const adminChangeEmailForUser = {
+				email: userDto?.changeUserEmail ?? undefined
+			}
+			updateData = {
+				...updateData,
+				...adminChangeEmailForUser
+			}
+		}
+
 		const updateUser = await this.prismaService.user
 			.update({
-				where: { email: userCookie.email },
+				where: { email: userDto.email },
 				data: updateData
 			})
 			.catch(err => {
@@ -208,8 +214,8 @@ export class UserService {
 				throw new InternalServerErrorException('Ошибка обновления пользователя')
 			})
 
-		await this.clearUserCache(userCookie)
-		await this.setUserCache(updateData)
+		await this.clearUserCache(userCookie.id)
+		await this.setUserCache(updateUser)
 
 		return updateUser
 	}
@@ -225,34 +231,28 @@ export class UserService {
 	 * @returns - A promise that resolves when all specified cache entries have been cleared.
 	 */
 	private async clearUserCache(
-		arg1?: Partial<IdOrEmail> | Partial<User | IJwtPayload>,
+		arg1?: string | Partial<User | IJwtPayload>,
 		arg2?: Partial<User | IJwtPayload>
 	): Promise<void> {
 		try {
 			const promises = []
-			let idOrEmail: Partial<IdOrEmail> | undefined
+			let idOrEmail: string
 			let user: Partial<User | IJwtPayload> | undefined
 
 			// definition args by type IdOrEmail or User
-			if (arg1 && ('id' in arg1 || 'email' in arg1)) {
-				idOrEmail = arg1 as Partial<IdOrEmail>
+			if (typeof arg1 === 'string') {
+				idOrEmail = arg1
 				user = arg2
 			} else {
-				user = arg1 as Partial<User | IJwtPayload>
+				idOrEmail = arg1.id
+				user = arg1
 			}
 
-			if (idOrEmail?.id) {
-				promises.push(this.cacheManager.del(idOrEmail.id))
+			if (idOrEmail) {
+				promises.push(this.cacheManager.del(idOrEmail))
 			}
 			if (user?.id) {
 				promises.push(this.cacheManager.del(user.id))
-			}
-
-			if (idOrEmail?.email) {
-				promises.push(this.cacheManager.del(idOrEmail.email))
-			}
-			if (user?.email) {
-				promises.push(this.cacheManager.del(user.email))
 			}
 
 			await Promise.all(promises)
@@ -273,31 +273,28 @@ export class UserService {
 	 * @returns - A promise that resolves when the cache set operation for all identifiers is complete.
 	 */
 	private async setUserCache(
-		arg1?: Partial<IdOrEmail> | Partial<User | IJwtPayload>,
+		arg1?: string | Partial<User | IJwtPayload>,
 		arg2?: Partial<User | IJwtPayload>
 	): Promise<void> {
-		let idOrEmail: Partial<IdOrEmail> | undefined
+		let idOrEmail: string | undefined
 		let user: Partial<User | IJwtPayload> | undefined
 
 		// definition args by type IdOrEmail or User
-		if (arg1 && ('id' in arg1 || 'email' in arg1)) {
-			idOrEmail = arg1 as Partial<IdOrEmail>
+		if (typeof arg1 === 'string') {
+			idOrEmail = arg1
 			user = arg2
 		} else {
-			user = arg1 as Partial<User | IJwtPayload>
+			idOrEmail = arg1.id
+			user = arg1
 		}
 		try {
-			const ttl = convertToSecondsUtil(this.configService.get('JWT_EXP'))
-			if (idOrEmail?.id) {
-				await this.cacheManager.set(idOrEmail.id, user, ttl)
+			const ttl = convertToSecondsUtil(
+				this.configService.get('CACHE_USER_EXPIRES')
+			)
+			if (idOrEmail) {
+				await this.cacheManager.set(idOrEmail, user, ttl)
 			}
-			if (idOrEmail?.email) {
-				await this.cacheManager.set(idOrEmail.email, user, ttl)
-			}
-			if (!idOrEmail && user?.email) {
-				await this.cacheManager.set(user.email, user, ttl)
-			}
-			if (!idOrEmail && user?.id) {
+			if (!idOrEmail && user.id) {
 				await this.cacheManager.set(user.id, user, ttl)
 			}
 		} catch (err) {
