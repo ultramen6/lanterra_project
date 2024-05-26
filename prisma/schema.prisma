@@ -14,15 +14,16 @@ datasource db {
 }
 
 model User {
-  id        String    @unique @default(uuid())
-  email     String    @unique
-  password  String?
-  provider  Provider?
-  isBlocked Boolean   @default(false) @map("is_blocked")
-  createAt  DateTime  @default(now()) @map("create_at")
-  updateAt  DateTime  @default(now()) @map("update_at")
-  roles     Role[]
-  Token     Token[]
+  id         String    @unique @default(uuid())
+  email      String    @unique
+  password   String?
+  provider   Provider?
+  isBlocked  Boolean   @default(false) @map("is_blocked")
+  createAt   DateTime  @default(now()) @map("create_at")
+  updateAt   DateTime  @default(now()) @map("update_at")
+  isVerified Boolean   @default(false) @map("is_verified")
+  roles      Role[]
+  Token      Token[]
 
   @@map("users")
 }
