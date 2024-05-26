@@ -9,6 +9,9 @@ import { ConfigModule } from '@nestjs/config'
 import { AuthModule } from './auth/auth.module'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtAuthGuard } from './auth/guards/jwt-auth-guard'
+import { MailerService } from './mailer/mailer.service';
+import { MailerController } from './mailer/mailer.controller';
+import { MailerModule } from './mailer/mailer.module';
 
 @Module({
   imports: [
@@ -16,7 +19,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth-guard'
     UserModule,
     CacheModule.register(),
     ConfigModule.forRoot({ isGlobal: true }),
-    AuthModule
+    AuthModule,
+    MailerModule
   ],
   providers: [
     PrismaService,
@@ -24,8 +28,9 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth-guard'
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard
-    }
+    },
+    MailerService
   ],
-  controllers: [UserController]
+  controllers: [UserController, MailerController]
 })
 export class AppModule { }
