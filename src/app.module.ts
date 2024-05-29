@@ -9,9 +9,9 @@ import { ConfigModule } from '@nestjs/config'
 import { AuthModule } from './auth/auth.module'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtAuthGuard } from './auth/guards/jwt-auth-guard'
-import { MailerService } from './mailer/mailer.service';
-import { MailerController } from './mailer/mailer.controller';
-import { MailerModule } from './mailer/mailer.module';
+import { MailerService } from './mailer/mailer.service'
+import { MailerController } from './mailer/mailer.controller'
+import { MailerModule } from './mailer/mailer.module'
 
 @Module({
   imports: [
@@ -28,8 +28,7 @@ import { MailerModule } from './mailer/mailer.module';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard
-    },
-    MailerService
+    }
   ],
   controllers: [UserController, MailerController]
 })

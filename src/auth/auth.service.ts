@@ -18,6 +18,7 @@ import { compareSync } from 'bcrypt'
 import { v4 } from 'uuid'
 import { generateExpConfig } from 'common/utils/generate-exp-config.util'
 import { Response } from 'express'
+import { MailerService } from 'src/mailer/mailer.service'
 
 export const REFRESH_TOKEN = 'refreshtoken'
 
@@ -28,8 +29,9 @@ export class AuthService {
 		private readonly prismaService: PrismaService,
 		private readonly userService: UserService,
 		private readonly jwtService: JwtService,
-		private readonly configService: ConfigService
-	) {}
+		private readonly configService: ConfigService,
+		private readonly mailerService: MailerService
+	) { }
 
 	/**
 	 * Registers a new user in the system.
@@ -50,7 +52,9 @@ export class AuthService {
 				`Пользователь с Email: ${dto.email} уже существует`
 			)
 		}
-		return this.userService.save(dto)
+		const newUser = await this.userService.save(dto)
+		await this.mailerService.sendEmailPasswordConfirmation(newUser)
+		return newUser
 	}
 
 	/**

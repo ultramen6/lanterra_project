@@ -1,0 +1,36 @@
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f7f7f7;
+        margin: 0;
+        padding: 0;
+    }
+    .container {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #ffffff;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+        background-color: #eeeeee;
+        padding: 10px;
+        text-align: center;
+    }
+    .content {
+        padding: 20px;
+        text-align: center;
+    }
+    .confirm-link {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 10px 15px;
+        background-color: #007bff;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 5px;
+    }
+    .confirm-link:hover {
+        background-color: #0056b3;
+    }
+</style>

@@ -23,7 +23,7 @@ export class UserService {
 		private readonly prismaService: PrismaService,
 		private readonly configService: ConfigService,
 		@Inject(CACHE_MANAGER) private cacheManager: Cache
-	) {}
+	) { }
 
 	/**
 	 * Saves or updates a user in the database and caches their information.
@@ -34,11 +34,16 @@ export class UserService {
 	 * @param user - A user object containing new or updated user data.
 	 * @returns - A promise that resolves to the saved user object or null in case of an error.
 	 */
-	async save(user: Partial<User>): Promise<User | null> {
+	async save(
+		user: Partial<User>,
+		isUserVerified = false
+	): Promise<User | null> {
 		const hashedPassword = user?.password
 			? this.hashPassword(user.password)
 			: null
 
+		console.log(user)
+		console.log(isUserVerified)
 		const savedUser = await this.prismaService.user
 			.upsert({
 				where: { email: user.email },
@@ -46,13 +51,15 @@ export class UserService {
 					password: hashedPassword ?? undefined,
 					provider: user?.provider ?? undefined,
 					roles: user?.roles ?? undefined,
-					isBlocked: user?.isBlocked ?? undefined
+					isBlocked: user?.isBlocked ?? undefined,
+					isVerified: isUserVerified
 				},
 				create: {
 					email: user.email,
 					password: hashedPassword,
 					roles: ['USER'],
-					provider: user.provider
+					provider: user.provider,
+					isVerified: isUserVerified
 				}
 			})
 			.catch(err => {

@@ -12,6 +12,7 @@ export class UserResponse implements User {
   roles: $Enums.Role[]
   provider: $Enums.Provider
   isBlocked: boolean
+  isVerified: boolean
 
   constructor(user: User) {
     Object.assign(this, user)

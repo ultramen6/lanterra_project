@@ -20,3 +20,7 @@ export interface IdOrEmail {
   id?: string
   email?: string
 }
+
+export interface IMailJwtToken {
+  mailJwtToken: string
+}

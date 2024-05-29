@@ -1,0 +1,51 @@
+<html lang='en'>
+	<head>
+		<meta charset='UTF-8' />
+		<meta name='viewport' content='width=device-width, initial-scale=1.0' />
+		<link
+			href='https://fonts.googleapis.com/css?family=Inter&display=swap'
+			rel='stylesheet'
+		/>
+		<title>Форма подтверждения</title>
+		<style>
+			body { font-family: 'Inter', sans-serif; margin: 0; padding: 0;
+			background-color: #0D0F10; /* Основной фон страницы */ color: #ffffff; /*
+			Цвет текста */ } .container { max-width: 600px; margin: 20px auto;
+			padding: 20px; /* Радиальный градиент для фона контейнера */ background:
+			radial-gradient(circle at center, #152D5A 0%, #5A1532 50%, #17323F 100%);
+			box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); border-radius: 10px; /*
+			Скругление углов контейнера */ color: #ffffff; /* Цвет текста на
+			градиентном фоне */ } .header, .logos, .content { text-align: center;
+			padding: 10px; border-radius: 5px; /* Скругление углов внутренних блоков
+			*/ } .logos { display: flex; justify-content: center; align-items: center;
+			} .logos img { max-width: 100px; /* Максимальная ширина для логотипов */
+			margin: 0 10px; /* Отступы между логотипами */ } .confirm-link { display:
+			inline-block; margin-top: 20px; padding: 10px 15px; background-color:
+			#007bff; color: #ffffff; text-decoration: none; border-radius: 5px; /*
+			Скругление углов кнопки */ box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /*
+			Тень для кнопки */ } .confirm-link:hover { background-color: #0056b3; /*
+			Цвет кнопки при наведении */ }
+		</style>
+	</head>
+	<body>
+		<div class='container'>
+			<div class='header'>
+				<div class='logos'>
+					<img
+						src='https://imageup.ru/img260/4831030/v251_2928.jpg'
+						alt='Логотип 1'
+					/>
+					<img
+						src='https://imageup.ru/img3/4831031/v251_2929.jpg'
+						alt='Логотип 2'
+					/>
+				</div>
+			</div>
+			<div class='content'>
+				<p>Для завершения регистрации, пожалуйста, подтвердите ваш email,
+					перейдя по ссылке ниже:</p>
+				<a href='{{url}}' class='confirm-link'>Подтвердить Email</a>
+			</div>
+		</div>
+	</body>
+</html>
